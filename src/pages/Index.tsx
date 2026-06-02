@@ -398,7 +398,7 @@ export default function Index() {
                 </button>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {PRODUCTS.slice(0, 4).map((product, i) => (
+                {products.slice(0, 4).map((product, i) => (
                   <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} isAdded={addedToCart === product.id} delay={i * 0.1} />
                 ))}
               </div>
