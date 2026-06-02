@@ -4,27 +4,23 @@ import Icon from "@/components/ui/icon";
 const HERO_IMAGE = "https://cdn.poehali.dev/projects/57cfe8af-6b72-4719-882e-a3de3e5cc7e2/files/db72a135-b211-48e5-bcdd-bcac89756264.jpg";
 const PRODUCTS_IMAGE = "https://cdn.poehali.dev/projects/57cfe8af-6b72-4719-882e-a3de3e5cc7e2/files/7ab6ec06-c471-434a-82c2-56d595b58b37.jpg";
 const LIFESTYLE_IMAGE = "https://cdn.poehali.dev/projects/57cfe8af-6b72-4719-882e-a3de3e5cc7e2/files/41446af3-8a79-490f-aaf3-72b4f4e64535.jpg";
+const API_URL = "https://functions.poehali.dev/9039ecd5-a8e8-431f-8a03-4626a52e12c9";
 
 type Section = "home" | "catalog" | "about" | "cart" | "reviews" | "blog" | "contacts";
 
-const PRODUCTS = [
-  { id: 1, name: "AirPods Ultra X", price: 12990, oldPrice: 17990, category: "Техника", rating: 4.9, reviews: 234, badge: "ХИТ", color: "#FF2D9B" },
-  { id: 2, name: "Smart Watch Pro", price: 24990, oldPrice: null, category: "Часы", rating: 4.7, reviews: 89, badge: "НОВИНКА", color: "#00FFE0" },
-  { id: 3, name: "Сумка Minimal", price: 8490, oldPrice: 11990, category: "Аксессуары", rating: 4.8, reviews: 156, badge: "-29%", color: "#FFE500" },
-  { id: 4, name: "Кроссовки Neo", price: 15990, oldPrice: null, category: "Обувь", rating: 4.6, reviews: 312, badge: "ТОП", color: "#9D00FF" },
-  { id: 5, name: "Куртка Future", price: 19990, oldPrice: 28000, category: "Одежда", rating: 4.9, reviews: 67, badge: "-29%", color: "#FF2D9B" },
-  { id: 6, name: "Рюкзак Urban", price: 6990, oldPrice: null, category: "Аксессуары", rating: 4.5, reviews: 198, badge: "POPULAR", color: "#00FFE0" },
-  { id: 7, name: "Очки Cyber", price: 4990, oldPrice: 6990, category: "Аксессуары", rating: 4.7, reviews: 445, badge: "-28%", color: "#FFE500" },
-  { id: 8, name: "Bluetooth Speaker", price: 9990, oldPrice: null, category: "Техника", rating: 4.8, reviews: 123, badge: "НОВИНКА", color: "#9D00FF" },
-];
-
-const SEARCH_SUGGESTIONS = [
-  "AirPods", "Smart Watch", "Кроссовки", "Куртка", "Рюкзак",
-  "Наушники беспроводные", "Часы спортивные", "Очки солнечные",
-  "Сумка кожаная", "Bluetooth колонка",
-];
-
-const CATEGORIES = ["Все", "Техника", "Часы", "Аксессуары", "Обувь", "Одежда"];
+type Product = {
+  id: number;
+  name: string;
+  price: number;
+  old_price: number | null;
+  category: string;
+  rating: number;
+  reviews_count: number;
+  badge: string | null;
+  color: string;
+  emoji: string;
+  is_active: boolean;
+};
 
 const REVIEWS = [
   { id: 1, name: "Александра М.", text: "Качество товаров просто отличное! Заказываю уже третий раз, всегда всё приходит вовремя и упаковано аккуратно.", rating: 5, date: "2 дня назад", product: "AirPods Ultra X" },
@@ -41,7 +37,7 @@ const BLOG_POSTS = [
 ];
 
 function ProductCard({ product, onAddToCart, isAdded, delay }: {
-  product: typeof PRODUCTS[0];
+  product: Product;
   onAddToCart: (id: number) => void;
   isAdded: boolean;
   delay: number;
@@ -52,7 +48,7 @@ function ProductCard({ product, onAddToCart, isAdded, delay }: {
       style={{ animationDelay: `${delay}s` }}
     >
       <div className="aspect-square relative overflow-hidden flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${product.color}15, #0A0A0A)` }}>
-        <div className="text-5xl group-hover:scale-110 transition-transform duration-500">🛍️</div>
+        <div className="text-5xl group-hover:scale-110 transition-transform duration-500">{product.emoji}</div>
         {product.badge && (
           <span className="absolute top-3 left-3 px-2.5 py-1 rounded-lg text-[10px] font-display font-bold" style={{ background: product.color, color: '#000' }}>
             {product.badge}
@@ -65,13 +61,13 @@ function ProductCard({ product, onAddToCart, isAdded, delay }: {
         <div className="flex items-center gap-1 mb-3">
           <span className="text-[#FFE500] text-xs">★</span>
           <span className="text-[#888] text-xs font-body">{product.rating}</span>
-          <span className="text-[#333] text-xs font-body">({product.reviews})</span>
+          <span className="text-[#333] text-xs font-body">({product.reviews_count})</span>
         </div>
         <div className="flex items-end justify-between">
           <div>
             <div className="font-display font-bold text-base text-white">{product.price.toLocaleString()} ₽</div>
-            {product.oldPrice && (
-              <div className="text-[#444] text-xs font-body line-through">{product.oldPrice.toLocaleString()} ₽</div>
+            {product.old_price && (
+              <div className="text-[#444] text-xs font-body line-through">{product.old_price.toLocaleString()} ₽</div>
             )}
           </div>
           <button
@@ -123,13 +119,27 @@ export default function Index() {
   const [activeCategory, setActiveCategory] = useState("Все");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [addedToCart, setAddedToCart] = useState<number | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  const filteredSuggestions = searchQuery.length > 0
-    ? SEARCH_SUGGESTIONS.filter(s => s.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 5)
-    : SEARCH_SUGGESTIONS.slice(0, 5);
+  useEffect(() => {
+    fetch(API_URL)
+      .then(r => r.json())
+      .then(data => {
+        setProducts((data.products as Product[]).filter(p => p.is_active));
+        setProductsLoading(false);
+      })
+      .catch(() => setProductsLoading(false));
+  }, []);
 
-  const filteredProducts = PRODUCTS.filter(p =>
+  const categories = ["Все", ...Array.from(new Set(products.map(p => p.category)))];
+
+  const filteredSuggestions = searchQuery.length > 0
+    ? products.map(p => p.name).filter(n => n.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 5)
+    : products.map(p => p.name).slice(0, 5);
+
+  const filteredProducts = products.filter(p =>
     (activeCategory === "Все" || p.category === activeCategory) &&
     (searchQuery === "" || p.name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
@@ -148,7 +158,7 @@ export default function Index() {
     });
   };
 
-  const cartItems = PRODUCTS.filter(p => cart.includes(p.id));
+  const cartItems = products.filter(p => cart.includes(p.id));
   const cartTotal = cartItems.reduce((sum, p) => sum + p.price, 0);
 
   useEffect(() => {
@@ -441,7 +451,7 @@ export default function Index() {
             </div>
 
             <div className="flex gap-2 flex-wrap mb-8">
-              {CATEGORIES.map(cat => (
+              {categories.map(cat => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
@@ -463,7 +473,20 @@ export default function Index() {
               </div>
             )}
 
-            {filteredProducts.length === 0 ? (
+            {productsLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="bg-[#111] border border-[#1E1E1E] rounded-2xl overflow-hidden animate-pulse">
+                    <div className="aspect-square bg-[#1A1A1A]" />
+                    <div className="p-4 space-y-2">
+                      <div className="h-3 bg-[#1A1A1A] rounded w-1/2" />
+                      <div className="h-4 bg-[#1A1A1A] rounded w-3/4" />
+                      <div className="h-5 bg-[#1A1A1A] rounded w-1/3" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredProducts.length === 0 ? (
               <div className="text-center py-20">
                 <div className="text-6xl mb-4">🔍</div>
                 <div className="font-display font-bold text-xl text-[#555] mb-2">Ничего не найдено</div>
